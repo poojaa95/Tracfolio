@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from app.core.db import connect_db, close_db
 from app.routes.auth import router as auth_router
 from app.routes.users import router as users_router
@@ -9,9 +10,19 @@ from app.routes.leetcode import router as leetcode_router
 
 app = FastAPI(title="Tracfolio API")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 @app.on_event("startup")
 async def startup():
     await connect_db()
+    from app.core.indexes import create_indexes
+    await create_indexes()
 
 @app.on_event("shutdown")
 async def shutdown():

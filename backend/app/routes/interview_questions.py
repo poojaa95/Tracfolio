@@ -35,13 +35,24 @@ async def create_question(
     return question
 
 @router.get("/api/interview-questions")
-async def get_questions(current_user: dict = Depends(get_current_user)):
+async def get_questions(
+    current_user: dict = Depends(get_current_user),
+    page: int = 1,
+    limit: int = 20
+):
     db = get_db()
     user = await db.users.find_one({"google_id": current_user["sub"]})
+    skip = (page - 1) * limit
     questions = await db.interview_questions.find(
         {"user_id": user["_id"]}
-    ).to_list(length=100)
-    return [serialize_question(q) for q in questions]
+    ).skip(skip).limit(limit).to_list(length=limit)
+    total = await db.interview_questions.count_documents({"user_id": user["_id"]})
+    return {
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "data": [serialize_question(q) for q in questions]
+    }
 
 @router.get("/api/interview-questions/search")
 async def search_questions(

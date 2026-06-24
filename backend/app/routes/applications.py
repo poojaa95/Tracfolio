@@ -37,13 +37,29 @@ async def create_application(
     return application
 
 @router.get("/api/applications")
-async def get_applications(current_user: dict = Depends(get_current_user)):
+async def get_applications(
+    current_user: dict = Depends(get_current_user),
+    page: int = 1,
+    limit: int = 20,
+    status: str = None,
+    source: str = None
+):
     db = get_db()
     user = await db.users.find_one({"google_id": current_user["sub"]})
-    applications = await db.applications.find(
-        {"user_id": user["_id"]}
-    ).to_list(length=100)
-    return [serialize_application(app) for app in applications]
+    query = {"user_id": user["_id"]}
+    if status:
+        query["status"] = status
+    if source:
+        query["source"] = source
+    skip = (page - 1) * limit
+    applications = await db.applications.find(query).skip(skip).limit(limit).to_list(length=limit)
+    total = await db.applications.count_documents(query)
+    return {
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "data": [serialize_application(app) for app in applications]
+    }
 
 @router.put("/api/applications/{application_id}")
 async def update_application(
