@@ -1,4 +1,5 @@
 import httpx
+import bcrypt
 from app.core.config import settings
 
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -21,3 +22,13 @@ async def get_google_user(code: str, redirect_uri: str) -> dict:
             headers={"Authorization": f"Bearer {access_token}"}
         )
         return user_response.json()
+
+def hash_password(password: str) -> str:
+    salt = bcrypt.gensalt(rounds=12)
+    return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return bcrypt.checkpw(
+        plain_password.encode("utf-8"),
+        hashed_password.encode("utf-8")
+    )

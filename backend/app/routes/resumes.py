@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from app.utils.dependencies import get_current_user
+from fastapi.responses import StreamingResponse
+from app.utils.dependencies import get_current_user, get_user_document
 from app.core.db import get_db
 from datetime import datetime
 from bson import ObjectId
-import motor.motor_asyncio
-from gridfs import GridIn
-import gridfs
+from bson.errors import InvalidId
+from motor.motor_asyncio import AsyncIOMotorGridFSBucket
 
 router = APIRouter()
 
@@ -16,14 +16,10 @@ async def upload_resume(
 ):
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Only PDF files allowed")
-
     db = get_db()
-    user = await db.users.find_one({"google_id": current_user["sub"]})
-
+    user = await get_user_document(current_user, db)
     count = await db.resume_versions.count_documents({"user_id": user["_id"]})
     version_number = count + 1
-
-    from motor.motor_asyncio import AsyncIOMotorGridFSBucket
     bucket = AsyncIOMotorGridFSBucket(db)
     file_content = await file.read()
     file_id = await bucket.upload_from_stream(
@@ -31,7 +27,6 @@ async def upload_resume(
         file_content,
         metadata={"content_type": "application/pdf"}
     )
-
     resume_doc = {
         "user_id": user["_id"],
         "version": version_number,
@@ -39,7 +34,6 @@ async def upload_resume(
         "uploaded_at": datetime.utcnow()
     }
     result = await db.resume_versions.insert_one(resume_doc)
-
     return {
         "_id": str(result.inserted_id),
         "user_id": str(user["_id"]),
@@ -51,7 +45,7 @@ async def upload_resume(
 @router.get("/api/resumes")
 async def get_resumes(current_user: dict = Depends(get_current_user)):
     db = get_db()
-    user = await db.users.find_one({"google_id": current_user["sub"]})
+    user = await get_user_document(current_user, db)
     resumes = await db.resume_versions.find(
         {"user_id": user["_id"]}
     ).sort("version", 1).to_list(length=100)
@@ -66,16 +60,16 @@ async def download_resume(
     current_user: dict = Depends(get_current_user)
 ):
     db = get_db()
-    user = await db.users.find_one({"google_id": current_user["sub"]})
-    resume = await db.resume_versions.find_one({
-        "_id": ObjectId(resume_id),
-        "user_id": user["_id"]
-    })
+    user = await get_user_document(current_user, db)
+    try:
+        resume = await db.resume_versions.find_one({
+            "_id": ObjectId(resume_id),
+            "user_id": user["_id"]
+        })
+    except InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid resume ID format")
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
-
-    from motor.motor_asyncio import AsyncIOMotorGridFSBucket
-    from fastapi.responses import StreamingResponse
     bucket = AsyncIOMotorGridFSBucket(db)
     stream = await bucket.open_download_stream(ObjectId(resume["file_url"]))
     return StreamingResponse(
@@ -90,15 +84,16 @@ async def delete_resume(
     current_user: dict = Depends(get_current_user)
 ):
     db = get_db()
-    user = await db.users.find_one({"google_id": current_user["sub"]})
-    resume = await db.resume_versions.find_one({
-        "_id": ObjectId(resume_id),
-        "user_id": user["_id"]
-    })
+    user = await get_user_document(current_user, db)
+    try:
+        resume = await db.resume_versions.find_one({
+            "_id": ObjectId(resume_id),
+            "user_id": user["_id"]
+        })
+    except InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid resume ID format")
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
-
-    from motor.motor_asyncio import AsyncIOMotorGridFSBucket
     bucket = AsyncIOMotorGridFSBucket(db)
     await bucket.delete(ObjectId(resume["file_url"]))
     await db.resume_versions.delete_one({"_id": ObjectId(resume_id)})

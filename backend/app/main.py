@@ -7,6 +7,7 @@ from app.routes.applications import router as applications_router
 from app.routes.resumes import router as resumes_router
 from app.routes.interview_questions import router as interview_questions_router
 from app.routes.leetcode import router as leetcode_router
+from app.routes.analytics import router as analytics_router
 
 app = FastAPI(title="Tracfolio API")
 
@@ -34,6 +35,7 @@ app.include_router(applications_router)
 app.include_router(resumes_router)
 app.include_router(interview_questions_router)
 app.include_router(leetcode_router)
+app.include_router(analytics_router)
 
 @app.get("/health")
 async def health_check():

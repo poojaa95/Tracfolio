@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from app.utils.dependencies import get_current_user
+from app.utils.dependencies import get_current_user, get_user_document
 from app.core.db import get_db
 from datetime import datetime
 import httpx
@@ -45,7 +45,7 @@ async def fetch_leetcode_stats(username: str) -> dict:
 @router.get("/api/leetcode")
 async def get_leetcode_stats(current_user: dict = Depends(get_current_user)):
     db = get_db()
-    user = await db.users.find_one({"google_id": current_user["sub"]})
+    user = await get_user_document(current_user, db)
     stats = await db.leetcode_stats.find_one({"user_id": user["_id"]})
     if not stats:
         return {"message": "No LeetCode username set. Use PUT /api/leetcode to set username."}
@@ -59,7 +59,7 @@ async def update_leetcode_username(
     current_user: dict = Depends(get_current_user)
 ):
     db = get_db()
-    user = await db.users.find_one({"google_id": current_user["sub"]})
+    user = await get_user_document(current_user, db)
     stats = await fetch_leetcode_stats(username)
     stats["user_id"] = user["_id"]
     stats["updated_at"] = datetime.utcnow()
@@ -71,6 +71,5 @@ async def update_leetcode_username(
         )
     else:
         await db.leetcode_stats.insert_one(stats)
-    stats["_id"] = str(stats.get("_id", ""))
     stats["user_id"] = str(stats["user_id"])
     return stats

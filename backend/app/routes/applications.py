@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
-from app.utils.dependencies import get_current_user
+from app.utils.dependencies import get_current_user, get_user_document
 from app.core.db import get_db
 from app.models.application import ApplicationCreate, ApplicationUpdate
 from datetime import datetime
 from bson import ObjectId
+from bson.errors import InvalidId
 
 router = APIRouter()
 
@@ -20,7 +21,7 @@ async def create_application(
     current_user: dict = Depends(get_current_user)
 ):
     db = get_db()
-    user = await db.users.find_one({"google_id": current_user["sub"]})
+    user = await get_user_document(current_user, db)
     application = {
         "user_id": user["_id"],
         "company": data.company,
@@ -45,7 +46,7 @@ async def get_applications(
     source: str = None
 ):
     db = get_db()
-    user = await db.users.find_one({"google_id": current_user["sub"]})
+    user = await get_user_document(current_user, db)
     query = {"user_id": user["_id"]}
     if status:
         query["status"] = status
@@ -61,6 +62,24 @@ async def get_applications(
         "data": [serialize_application(app) for app in applications]
     }
 
+@router.get("/api/applications/{application_id}")
+async def get_application(
+    application_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    db = get_db()
+    user = await get_user_document(current_user, db)
+    try:
+        app = await db.applications.find_one({
+            "_id": ObjectId(application_id),
+            "user_id": user["_id"]
+        })
+    except InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid application ID format")
+    if not app:
+        raise HTTPException(status_code=404, detail="Application not found")
+    return serialize_application(app)
+
 @router.put("/api/applications/{application_id}")
 async def update_application(
     application_id: str,
@@ -68,16 +87,22 @@ async def update_application(
     current_user: dict = Depends(get_current_user)
 ):
     db = get_db()
-    user = await db.users.find_one({"google_id": current_user["sub"]})
+    user = await get_user_document(current_user, db)
     update_data = {"updated_at": datetime.utcnow()}
     if data.status:
         update_data["status"] = data.status
     if data.resume_id:
-        update_data["resume_id"] = ObjectId(data.resume_id)
-    result = await db.applications.update_one(
-        {"_id": ObjectId(application_id), "user_id": user["_id"]},
-        {"$set": update_data}
-    )
+        try:
+            update_data["resume_id"] = ObjectId(data.resume_id)
+        except InvalidId:
+            raise HTTPException(status_code=400, detail="Invalid resume ID format")
+    try:
+        result = await db.applications.update_one(
+            {"_id": ObjectId(application_id), "user_id": user["_id"]},
+            {"$set": update_data}
+        )
+    except InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid application ID format")
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Application not found")
     return {"message": "Application updated"}
@@ -88,10 +113,13 @@ async def delete_application(
     current_user: dict = Depends(get_current_user)
 ):
     db = get_db()
-    user = await db.users.find_one({"google_id": current_user["sub"]})
-    result = await db.applications.delete_one(
-        {"_id": ObjectId(application_id), "user_id": user["_id"]}
-    )
+    user = await get_user_document(current_user, db)
+    try:
+        result = await db.applications.delete_one(
+            {"_id": ObjectId(application_id), "user_id": user["_id"]}
+        )
+    except InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid application ID format")
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Application not found")
     return {"message": "Application deleted"}
