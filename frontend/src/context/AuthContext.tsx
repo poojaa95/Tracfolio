@@ -39,13 +39,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initAuth();
   }, []);
 
-  const login = (token: string, userData?: User) => {
-    tokenStorage.set(token);
-    if (userData) {
-      // For email/password login — user data comes with token
-      authApi.getMe().then(setUser).catch(() => {});
-    }
-  };
+  const login = async (token: string) => {
+      tokenStorage.set(token)
+      try {
+          const userData = await authApi.getMe()
+          setUser(userData)
+      } catch {
+          tokenStorage.remove()
+          setUser(null)
+        }
+      }
 
   const logout = async () => {
     try {

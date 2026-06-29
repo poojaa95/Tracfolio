@@ -5,6 +5,7 @@ import PublicRoute from '@/routes/PublicRoute'
 import Login from '@/pages/Login'
 import Register from '@/pages/Register'
 import Dashboard from '@/pages/Dashboard'
+import AuthCallback from '@/pages/AuthCallback'
 
 function App() {
   return (
@@ -26,6 +27,9 @@ function App() {
           </PublicRoute>
         }
       />
+
+      {/* Google OAuth callback */}
+      <Route path="/auth/callback" element={<AuthCallback />} />
 
       {/* Protected routes */}
       <Route

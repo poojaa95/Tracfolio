@@ -65,12 +65,9 @@ async def google_callback(code: str):
         })
         user_id = str(result.inserted_id)
 
-    token = create_access_token({
-        "sub": user_data["id"],
-        "email": user_data["email"],
-        "auth_provider": "google"
-    })
-    return {"access_token": token, "token_type": "bearer"}
+    token = create_access_token({"sub": user_data["id"], "email": user_data["email"], "auth_provider": "google"})
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url=f"http://localhost:5173/auth/callback?token={token}")
 
 # ─── Email/Password Auth ─────────────────────────────────────
 
