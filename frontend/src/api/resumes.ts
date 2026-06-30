@@ -8,14 +8,16 @@ export const resumesApi = {
     return response.data;
   },
 
-  upload: async (file: File): Promise<ResumeVersion> => {
-    const formData = new FormData();
-    formData.append('file', file);
-    const response = await apiClient.post<ResumeVersion>('/api/resumes', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return response.data;
-  },
+  upload: async (file: File, name?: string, notes?: string): Promise<ResumeVersion> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (name) formData.append('name', name);
+  if (notes) formData.append('notes', notes);
+  const response = await apiClient.post<ResumeVersion>('/api/resumes', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+ },
 
   download: async (resumeId: string, version: number): Promise<void> => {
     const token = tokenStorage.get();

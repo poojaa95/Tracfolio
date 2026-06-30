@@ -8,6 +8,7 @@ import Dashboard from '@/pages/Dashboard'
 import AuthCallback from '@/pages/AuthCallback'
 import DashboardLayout from '@/layouts/DashboardLayout'
 import Applications from '@/pages/Applications'
+import Resumes from '@/pages/Resumes'
 
 function App() {
   return (
@@ -23,7 +24,7 @@ function App() {
       >
         <Route index element={<Dashboard />} />
         <Route path="applications" element={<Applications />} />
-        <Route path="resumes" element={<div className="p-6"><h1 className="text-xl font-semibold">Resumes — Phase 5</h1></div>} />
+        <Route path="resumes" element={<Resumes />} />
         <Route path="questions" element={<div className="p-6"><h1 className="text-xl font-semibold">Interview Questions — Phase 6</h1></div>} />
         <Route path="leetcode" element={<div className="p-6"><h1 className="text-xl font-semibold">LeetCode — Phase 7</h1></div>} />
         <Route path="analytics" element={<div className="p-6"><h1 className="text-xl font-semibold">Analytics — Phase 8</h1></div>} />

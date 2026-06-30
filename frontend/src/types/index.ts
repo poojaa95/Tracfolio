@@ -38,8 +38,10 @@ export interface ResumeVersion {
   user_id: string;
   version: number;
   file_url: string;
+  name?: string;
+  notes?: string;
   uploaded_at: string;
-}
+ }
 
 export interface InterviewQuestion {
   _id: string;

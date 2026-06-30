@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 from app.utils.dependencies import get_current_user, get_user_document
 from app.core.db import get_db
@@ -7,11 +7,14 @@ from bson import ObjectId
 from bson.errors import InvalidId
 from motor.motor_asyncio import AsyncIOMotorGridFSBucket
 
+
 router = APIRouter()
 
 @router.post("/api/resumes")
 async def upload_resume(
     file: UploadFile = File(...),
+    name: str = Form(None),
+    notes: str = Form(None),
     current_user: dict = Depends(get_current_user)
 ):
     if file.content_type != "application/pdf":
@@ -31,6 +34,8 @@ async def upload_resume(
         "user_id": user["_id"],
         "version": version_number,
         "file_url": str(file_id),
+        "name": name or f"Resume v{version_number}",
+        "notes": notes,
         "uploaded_at": datetime.utcnow()
     }
     result = await db.resume_versions.insert_one(resume_doc)
@@ -39,6 +44,8 @@ async def upload_resume(
         "user_id": str(user["_id"]),
         "version": version_number,
         "file_url": str(file_id),
+        "name": resume_doc["name"],
+        "notes": resume_doc["notes"],
         "uploaded_at": resume_doc["uploaded_at"]
     }
 

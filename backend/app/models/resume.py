@@ -7,4 +7,6 @@ class ResumeVersionResponse(BaseModel):
     user_id: str
     version: int
     file_url: str
+    name: Optional[str] = None
+    notes: Optional[str] = None
     uploaded_at: datetime
